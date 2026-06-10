@@ -1,0 +1,5 @@
+https://github.com/sunny9577/proxy-scraper/blob/master/proxies.txt
+https://proxyscrape.com/free-proxy-list
+https://github.com/proxifly/free-proxy-list/blob/main/proxies/all/data.txt
+https://proxydb.net/?country=
+https://github.com/ErcinDedeoglu/proxies/tree/main/proxies
