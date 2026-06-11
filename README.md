@@ -11,11 +11,10 @@
 By transitioning from synchronous thread-per-proxy pooling to non-blocking I/O, ProxyC can scale to handle thousands of concurrent proxy validations using minimal memory and near-zero CPU overhead.
 
 
-## Status
-**Unfinished:**  
-`zsh: segmentation fault  ./strainer --check`  
-
-This project was orginally made to improve the performance of my already existing script, as well as to learn C.
+## Status 
+*Finished*  
+Maybe will add some features in the future  
+This project was orginally made to improve the performance of my already existing script, as well as to learn C.  
 
 ## Features
 
