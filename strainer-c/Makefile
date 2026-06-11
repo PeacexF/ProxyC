@@ -19,5 +19,8 @@ $(BIN): $(OBJ)
 src/%.o: src/%.c
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-clean:
+clean-all:
 	rm -f src/*.o $(BIN)
+
+clean:
+	rm -f src/*.o
