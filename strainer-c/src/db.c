@@ -48,6 +48,9 @@ bool db_open(DB *db, const char *path) {
         db->handle = NULL;
         return false;
     }
+    strncpy(db->path, path, sizeof(db->path) - 1);
+    db->path[sizeof(db->path) - 1] = '\0';
+
     db_apply_pragmas(db);
     return db_create_schema(db);
 }
@@ -80,10 +83,10 @@ int db_import_file(DB *db, const char *filepath) {
     db_exec(db, "BEGIN TRANSACTION;");
 
     char line[512];
-    int  count        = 0;
-    int  skipped      = 0;
-    int  batch_size   = 0;
-    const int BATCH   = 5000;
+    int  count      = 0;
+    int  skipped    = 0;
+    int  batch_size = 0;
+    const int BATCH = 5000;
 
     while (fgets(line, sizeof(line), f)) {
         size_t len = strlen(line);
@@ -126,7 +129,8 @@ int db_fetch_by_status(DB *db, const char *status, char ***out, int limit) {
     if (sqlite3_prepare_v2(db->handle, sql, -1, &stmt, NULL) != SQLITE_OK) {
         fprintf(stderr, "[db] prepare failed: %s\n",
                 sqlite3_errmsg(db->handle));
-        return -1;
+        *out = NULL;
+        return 0;
     }
 
     sqlite3_bind_text(stmt, 1, status, -1, SQLITE_STATIC);
@@ -135,7 +139,8 @@ int db_fetch_by_status(DB *db, const char *status, char ***out, int limit) {
     char **arr = malloc((size_t)limit * sizeof(char *));
     if (!arr) {
         sqlite3_finalize(stmt);
-        return -1;
+        *out = NULL;
+        return 0;
     }
 
     int n = 0;
@@ -179,18 +184,12 @@ void db_update_result(DB *db, const char *address, bool success, const char *err
 
 int db_export(DB *db, const char *status, const char *scheme_filter, const char *outfile) {
     const char *sql_all    = "SELECT address FROM proxies WHERE status = ?;";
-    const char *sql_scheme =
-        "SELECT address FROM proxies WHERE status = ? AND address LIKE ?;";
+    const char *sql_scheme = "SELECT address FROM proxies WHERE status = ? AND address LIKE ?;";
 
     sqlite3_stmt *stmt = NULL;
-    int rc;
-
-    if (scheme_filter) {
-        rc = sqlite3_prepare_v2(db->handle, sql_scheme, -1, &stmt, NULL);
-    } else {
-        rc = sqlite3_prepare_v2(db->handle, sql_all, -1, &stmt, NULL);
-    }
-
+    int rc = sqlite3_prepare_v2(db->handle,
+                                scheme_filter ? sql_scheme : sql_all,
+                                -1, &stmt, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "[db] prepare failed: %s\n",
                 sqlite3_errmsg(db->handle));
@@ -225,8 +224,7 @@ int db_export(DB *db, const char *status, const char *scheme_filter, const char 
 }
 
 void db_print_stats(DB *db) {
-    const char *sql =
-        "SELECT status, COUNT(*) as n FROM proxies GROUP BY status ORDER BY n DESC;";
+    const char *sql = "SELECT status, COUNT(*) as n FROM proxies GROUP BY status ORDER BY n DESC;";
 
     sqlite3_stmt *stmt = NULL;
     if (sqlite3_prepare_v2(db->handle, sql, -1, &stmt, NULL) != SQLITE_OK) return;

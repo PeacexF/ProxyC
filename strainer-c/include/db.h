@@ -6,7 +6,8 @@
 
 
 typedef struct {
-    sqlite3 *handle;
+    sqlite3    *handle;
+    char        path[512];
 } DB;
 
 bool db_open(DB *db, const char *path);
