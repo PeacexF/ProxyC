@@ -16,8 +16,7 @@ typedef struct {
     size_t len;
 } ResponseBuf;
 
-static size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userdata)
-{
+static size_t write_cb(char *ptr, size_t size, size_t nmemb, void *userdata) {
     ResponseBuf *buf   = (ResponseBuf *)userdata;
     size_t       bytes = size * nmemb;
     size_t       space = RESPONSE_BUF_SIZE - buf->len - 1;
@@ -52,8 +51,7 @@ typedef struct {
     bool            done;
 } ResultQueue;
 
-static void rq_init(ResultQueue *q)
-{
+static void rq_init(ResultQueue *q) {
     q->head  = q->tail = NULL;
     q->count = 0;
     q->done  = false;
@@ -61,8 +59,7 @@ static void rq_init(ResultQueue *q)
     pthread_cond_init (&q->cond, NULL);
 }
 
-static void rq_push(ResultQueue *q, const char *address, bool success, const char *error_type, long latency_ms)
-{
+static void rq_push(ResultQueue *q, const char *address, bool success, const char *error_type, long latency_ms) {
     ResultNode *n = malloc(sizeof(ResultNode));
     if (!n) return;
 
@@ -93,8 +90,7 @@ typedef struct {
 
 #define DB_WRITER_BATCH 200
 
-static void writer_apply_pragmas(sqlite3 *h)
-{
+static void writer_apply_pragmas(sqlite3 *h) {
     sqlite3_exec(h, "PRAGMA journal_mode = WAL;",       NULL, NULL, NULL);
     sqlite3_exec(h, "PRAGMA synchronous = NORMAL;",     NULL, NULL, NULL);
     sqlite3_exec(h, "PRAGMA cache_size = -4000;",       NULL, NULL, NULL);
@@ -102,8 +98,7 @@ static void writer_apply_pragmas(sqlite3 *h)
     sqlite3_busy_timeout(h, 30000);
 }
 
-static void *db_writer_thread(void *arg)
-{
+static void *db_writer_thread(void *arg) {
     DBWriterArg *a = (DBWriterArg *)arg;
     ResultQueue *q = a->queue;
 
@@ -183,8 +178,7 @@ static void *db_writer_thread(void *arg)
     return NULL;
 }
 
-static bool ip_matches_origin(const char *address, const char *body)
-{
+static bool ip_matches_origin(const char *address, const char *body) {
     const char *host = address;
 
     const char *scheme_sep = strstr(address, "://");
@@ -205,8 +199,7 @@ static bool ip_matches_origin(const char *address, const char *body)
 }
 
 
-static CURL *make_easy_handle(const char *address, HandleCtx *ctx, const CheckerConfig *cfg)
-{
+static CURL *make_easy_handle(const char *address, HandleCtx *ctx, const CheckerConfig *cfg) {
     CURL *easy = curl_easy_init();
     if (!easy) return NULL;
 
@@ -236,8 +229,7 @@ static CURL *make_easy_handle(const char *address, HandleCtx *ctx, const Checker
     return easy;
 }
 
-static void process_done(CURL *easy, CURLcode res, ResultQueue *q)
-{
+static void process_done(CURL *easy, CURLcode res, ResultQueue *q) {
     HandleCtx *ctx = NULL;
     curl_easy_getinfo(easy, CURLINFO_PRIVATE, &ctx);
 
@@ -284,8 +276,7 @@ static void process_done(CURL *easy, CURLcode res, ResultQueue *q)
     free(ctx);
 }
 
-void checker_config_default(CheckerConfig *cfg)
-{
+void checker_config_default(CheckerConfig *cfg) {
     cfg->max_concurrent      = 512;
     cfg->batch_size          = 2000;
     cfg->timeout_sec         = 10;
@@ -293,8 +284,7 @@ void checker_config_default(CheckerConfig *cfg)
     cfg->test_url            = "http://httpbin.org/get";
 }
 
-void checker_run(DB *db, const char *status, const CheckerConfig *cfg)
-{
+void checker_run(DB *db, const char *status, const CheckerConfig *cfg) {
     curl_global_init(CURL_GLOBAL_ALL);
 
     ResultQueue  queue;
