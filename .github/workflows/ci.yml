@@ -1,0 +1,156 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get update -q && sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: |
+          cppcheck \
+            --enable=all \
+            --error-exitcode=1 \
+            --suppress=missingIncludeSystem \
+            --suppress=checkersReport \
+            -Iinclude \
+            src/
+
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            libcurl4-openssl-dev \
+            libsqlite3-dev
+
+      - name: Build (release)
+        run: make
+
+      - name: Build (debug — for valgrind)
+        run: |
+          make clean
+          make CFLAGS="-Wall -Wextra -O0 -g -std=c11 -Iinclude"
+
+      - name: Upload debug binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: strainer-debug
+          path: strainer
+          retention-days: 1
+
+  valgrind:
+    name: Valgrind (memory check)
+    runs-on: ubuntu-24.04
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y \
+            libcurl4-openssl-dev \
+            libsqlite3-dev \
+            valgrind
+
+      - name: Download debug binary
+        uses: actions/download-artifact@v4
+        with:
+          name: strainer-debug
+
+      - name: Make binary executable
+        run: chmod +x ./strainer
+
+      - name: Create tests
+        run: |
+          mkdir -p data
+          # A small list: mix of valid formats and one intentionally
+          # invalid line to exercise the syntax-validation path.
+          cat > data/test_proxies.txt << 'EOF'
+          1.2.3.4:8080
+          socks5://5.6.7.8:1080
+          socks5://208.102.51.6:58208
+          socks5://69.61.200.104:36181
+          http://9.10.11.12:3128
+          http://84.239.49.249:9002
+          http://84.239.49.250:9002
+          socks4://13.14.15.16:4145
+          not-a-proxy:1555
+          999.999.999.999:9999
+          EOF
+
+      - name: Valgrind — import
+        run: |
+          valgrind \
+            --tool=memcheck \
+            --leak-check=full \
+            --show-leak-kinds=definite,indirect \
+            --error-exitcode=1 \
+            --track-origins=yes \
+            ./strainer --db data/test.db --import data/test_proxies.txt
+
+      - name: Valgrind — stats
+        run: |
+          valgrind \
+            --tool=memcheck \
+            --leak-check=full \
+            --show-leak-kinds=definite,indirect \
+            --error-exitcode=1 \
+            ./strainer --db data/test.db --stats
+
+      - name: Valgrind — check
+        run: |
+          valgrind \
+            --tool=memcheck \
+            --leak-check=full \
+            --show-leak-kinds=definite,indirect \
+            --error-exitcode=1 \
+            --track-origins=yes \
+            ./strainer \
+              --db data/test.db \
+              --check \
+              --threads 4 \
+              --timeout 3
+
+      - name: Valgrind — export
+        run: |
+          valgrind \
+            --tool=memcheck \
+            --leak-check=full \
+            --show-leak-kinds=definite,indirect \
+            --error-exitcode=1 \
+            ./strainer \
+              --db data/test.db \
+              --export data/out_active.txt
+
+      - name: Valgrind — export socks5 only
+        run: |
+          valgrind \
+            --tool=memcheck \
+            --leak-check=full \
+            --show-leak-kinds=definite,indirect \
+            --error-exitcode=1 \
+            ./strainer \
+              --db data/test.db \
+              --export data/out_socks5.txt \
+              --scheme socks5://
