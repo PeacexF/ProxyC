@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: ["**"]
 
+defaults:
+  run:
+    working-directory: strainer-c
+
 jobs:
   lint:
     name: Lint
@@ -54,7 +58,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: strainer-debug
-          path: strainer
+          path: strainer-c/strainer
           retention-days: 1
 
   valgrind:
@@ -77,6 +81,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: strainer-debug
+          path: strainer-c
 
       - name: Make binary executable
         run: chmod +x ./strainer
@@ -84,9 +89,7 @@ jobs:
       - name: Create tests
         run: |
           mkdir -p data
-          # A small list: mix of valid formats and one intentionally
-          # invalid line to exercise the syntax-validation path.
-          cat > data/test_proxies.txt << 'EOF'
+          cat > data/test_proxies.txt << 'PROXIES'
           1.2.3.4:8080
           socks5://5.6.7.8:1080
           socks5://208.102.51.6:58208
@@ -97,7 +100,7 @@ jobs:
           socks4://13.14.15.16:4145
           not-a-proxy:1555
           999.999.999.999:9999
-          EOF
+          PROXIES
 
       - name: Valgrind — import
         run: |
