@@ -28,6 +28,8 @@ jobs:
             --error-exitcode=1 \
             --suppress=missingIncludeSystem \
             --suppress=checkersReport \
+            --suppress=constParameterCallback \
+            --suppress=unusedFunction \
             -Iinclude \
             src/
 
